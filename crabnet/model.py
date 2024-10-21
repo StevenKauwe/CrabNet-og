@@ -105,12 +105,11 @@ class Model:
         ti = time()
         minima = []
         for i, data in enumerate(self.train_loader):
-            X, y, formula = data
+            X, y, formula, features = data
             y = self.scaler.scale(y)
             src, frac = X.squeeze(-1).chunk(2, dim=1)
             # add a small jitter to the input fractions to improve model
             # robustness and to increase stability
-            # frac = frac * (1 + (torch.rand_like(frac)-0.5)*self.fudge)  # uniform
             frac = frac * (1 + (torch.randn_like(frac)) * self.fudge)  # normal
             frac = torch.clamp(frac, 0, 1)
             frac[src == 0] = 0
@@ -135,7 +134,7 @@ class Model:
                 self.capture_flag = False
             ##################################
 
-            output = self.model.forward(src, frac)
+            output = self.model.forward(src, frac, features)
             prediction, uncertainty = output.chunk(2, dim=-1)
             loss = self.criterion(prediction.view(-1), uncertainty.view(-1), y.view(-1))
 
@@ -344,7 +343,7 @@ class Model:
         self.model.eval()
         with torch.no_grad():
             for i, data in enumerate(loader):
-                X, y, formula = data
+                X, y, formula, features = data
                 if self.capture_flag:
                     self.formula_current = None
                     # HACK for PyTorch v1.8.0
@@ -359,7 +358,7 @@ class Model:
                     self.compute_device, dtype=data_type_torch, non_blocking=True
                 )
                 y = y.to(self.compute_device, dtype=data_type_torch, non_blocking=True)
-                output = self.model.forward(src, frac)
+                output = self.model.forward(src, frac, features)
                 prediction, uncertainty = output.chunk(2, dim=-1)
                 uncertainty = torch.exp(uncertainty) * self.scaler.std
                 prediction = self.scaler.unscale(prediction)

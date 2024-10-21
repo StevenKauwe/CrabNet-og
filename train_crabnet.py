@@ -23,10 +23,17 @@ def get_model(
     batch_size=None,
     transfer=None,
     verbose=True,
+    feats_dim=1,
 ):
     # Get the TorchedCrabNet architecture loaded
     model = Model(
-        CrabNet(compute_device=compute_device).to(compute_device),
+        CrabNet(
+            compute_device=compute_device,
+            features_dim=feats_dim,
+            # d_model=32,
+            # N=1,
+            # heads=4,
+        ).to(compute_device),
         model_name=f"{mat_prop}",
         verbose=verbose,
     )
@@ -49,7 +56,6 @@ def get_model(
             "Please ensure you have train (train.csv) and validation data",
             f'(val.csv) in folder "data/materials_data/{mat_prop}"',
         )
-
     # Load the train and validation data before fitting the network
     data_size = pd.read_csv(train_data).shape[0]
     batch_size = 2 ** round(np.log2(data_size) - 4)
@@ -82,10 +88,18 @@ def to_csv(output, save_name):
     df.to_csv(f"{save_path}/{save_name}", index_label="Index")
 
 
-def load_model(data_dir, mat_prop, classification, file_name, verbose=True):
+def load_model(
+    data_dir, mat_prop, classification, file_name, verbose=True, feats_dim=1
+):
     # Load up a saved network.
     model = Model(
-        CrabNet(compute_device=compute_device).to(compute_device),
+        CrabNet(
+            compute_device=compute_device,
+            features_dim=feats_dim,
+            # d_model=32,
+            # N=1,
+            # heads=4,
+        ).to(compute_device),
         model_name=f"{mat_prop}",
         verbose=verbose,
     )
@@ -137,16 +151,28 @@ if __name__ == "__main__":
     # Choose the directory where your data is stored
     data_dir = "data/materials_data"
     # Choose the folder with your materials properties
-    mat_prop = "oxides"
+    # mat_prop = "oxides-with-label-features"
     # Choose if you data is a regression or binary classification
     classification = True
     # train = False
     train = True
 
-    # Train your model using the "get_model" function
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # mat_prop = "oxides-with-label-features"
+    # if train:
+    #     print(f'Property "{mat_prop}" selected for training')
+    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=1)
+
+    mat_prop = "oxides-with-qr-label-features"
     if train:
         print(f'Property "{mat_prop}" selected for training')
-        model = get_model(data_dir, mat_prop, classification, verbose=True)
+        model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=1)
+
+    # mat_prop = "oxides-with-no-features"
+    # if train:
+    #     print(f'Property "{mat_prop}" selected for training')
+    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=0)
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     cutter = "====================================================="
     first = " " * ((len(cutter) - len(mat_prop)) // 2) + " " * int(

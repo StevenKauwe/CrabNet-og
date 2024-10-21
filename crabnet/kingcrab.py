@@ -187,6 +187,7 @@ class CrabNet(nn.Module):
         d_model=512,
         N=3,
         heads=4,
+        features_dim=None,
         compute_device=None,
         residual_nn="roost",
     ):
@@ -203,6 +204,7 @@ class CrabNet(nn.Module):
             heads=self.heads,
             compute_device=self.compute_device,
         )
+        self.features_dim = features_dim
         if residual_nn == "roost":
             # use the Roost residual network
             self.out_hidden = [1024, 512, 256, 128]
@@ -215,9 +217,15 @@ class CrabNet(nn.Module):
             self.output_nn = ResidualNetwork(
                 self.d_model, self.out_dims, self.out_hidden
             )
+        self.features_proj = nn.Linear(features_dim, self.d_model)
 
-    def forward(self, src, frac):
+    def forward(self, src, frac, features):
         output = self.encoder(src, frac)
+        if self.features_dim < 1:
+            feats = torch.zeros_like(output)
+        else:
+            feats = self.features_proj(features).unsqueeze(1).repeat(1, src.shape[1], 1)
+        output = output + feats
 
         # average the "element contribution" at the end
         # mask so you only average "elements"

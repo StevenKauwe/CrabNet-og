@@ -571,8 +571,14 @@ class EDMDataset(Dataset):
         self.X = np.array(self.data[0])
         self.y = np.array(self.data[1])
         self.formula = np.array(self.data[2])
+        self.features = np.array(self.data[3])
 
-        self.shape = [(self.X.shape), (self.y.shape), (self.formula.shape)]
+        self.shape = [
+            (self.X.shape),
+            (self.y.shape),
+            (self.formula.shape),
+            (self.features.shape),
+        ]
 
     def __str__(self):
         string = f"EDMDataset with X.shape {self.X.shape}"
@@ -585,11 +591,13 @@ class EDMDataset(Dataset):
         X = self.X[idx, :, :]
         y = self.y[idx]
         formula = self.formula[idx]
+        features = self.features[idx, :]
 
         X = torch.as_tensor(X, dtype=data_type_torch)
+        features = torch.as_tensor(features, dtype=data_type_torch)
         y = torch.as_tensor(y, dtype=data_type_torch)
 
-        return (X, y, formula)
+        return (X, y, formula, features)
 
 
 def get_edm(
@@ -763,6 +771,11 @@ def get_edm(
     ]
 
     y = df["target"].values.astype(data_type_np)
+    features = (
+        df.drop(["target", "formula", "count"], axis=1)
+        .fillna(0)
+        .values.astype(data_type_np)
+    )
     formula = df["formula"].values
     if n_elements == "infer":
         # cap maximum elements at 16, and then infer n_elements
@@ -809,7 +822,7 @@ def get_edm(
     elem_frac = elem_frac.reshape(elem_frac.shape[0], elem_frac.shape[1], 1)
     out = np.concatenate((elem_num, elem_frac), axis=1)
 
-    return out, y, formula
+    return out, y, formula, features
 
 
 # %%
