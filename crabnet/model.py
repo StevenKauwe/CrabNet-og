@@ -120,6 +120,9 @@ class Model:
                 self.compute_device, dtype=data_type_torch, non_blocking=True
             )
             y = y.to(self.compute_device, dtype=data_type_torch, non_blocking=True)
+            features = features.to(
+                self.compute_device, dtype=data_type_torch, non_blocking=True
+            )
 
             ##################################
             # Force evaluate dataset so that we can capture it in the hook
@@ -358,6 +361,9 @@ class Model:
                     self.compute_device, dtype=data_type_torch, non_blocking=True
                 )
                 y = y.to(self.compute_device, dtype=data_type_torch, non_blocking=True)
+                features = features.to(
+                    self.compute_device, dtype=data_type_torch, non_blocking=True
+                )
                 output = self.model.forward(src, frac, features)
                 prediction, uncertainty = output.chunk(2, dim=-1)
                 uncertainty = torch.exp(uncertainty) * self.scaler.std

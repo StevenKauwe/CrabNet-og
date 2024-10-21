@@ -14,6 +14,10 @@ RNG_SEED = 42
 torch.manual_seed(RNG_SEED)
 np.random.seed(RNG_SEED)
 
+D_MODEL = 512
+N = 3
+HEADS = 8
+EPOCHS = 100
 
 # %%
 def get_model(
@@ -30,9 +34,9 @@ def get_model(
         CrabNet(
             compute_device=compute_device,
             features_dim=feats_dim,
-            # d_model=32,
-            # N=1,
-            # heads=4,
+            d_model=D_MODEL,
+            N=N,
+            heads=HEADS,
         ).to(compute_device),
         model_name=f"{mat_prop}",
         verbose=verbose,
@@ -71,7 +75,7 @@ def get_model(
     model.load_data(val_data, batch_size=batch_size)
 
     # Set the number of epochs, decide if you want a loss curve to be plotted
-    model.fit(epochs=50, losscurve=False)
+    model.fit(epochs=EPOCHS, losscurve=False)
 
     # Save the network (saved as f"{model_name}.pth")
     model.save_network()
@@ -96,9 +100,9 @@ def load_model(
         CrabNet(
             compute_device=compute_device,
             features_dim=feats_dim,
-            # d_model=32,
-            # N=1,
-            # heads=4,
+            d_model=D_MODEL,
+            N=N,
+            heads=HEADS,
         ).to(compute_device),
         model_name=f"{mat_prop}",
         verbose=verbose,
@@ -121,8 +125,8 @@ def get_results(model):
     return model, output
 
 
-def save_results(data_dir, mat_prop, classification, file_name, verbose=True):
-    model = load_model(data_dir, mat_prop, classification, file_name, verbose=verbose)
+def save_results(data_dir, mat_prop, classification, file_name, verbose=True, feats_dim=1):
+    model = load_model(data_dir, mat_prop, classification, file_name, verbose=verbose, feats_dim=feats_dim)
     model, output = get_results(model)
 
     # Get appropriate metrics for saving to csv
@@ -135,6 +139,19 @@ def save_results(data_dir, mat_prop, classification, file_name, verbose=True):
         # save predictions to a csv
         fname = f'{mat_prop}_{file_name.replace(".csv", "")}_output.csv'
         to_csv(output, fname)
+
+
+        # Append metrics to the CSV file
+        import csv
+        split = file_name.replace(".csv", "")
+        metrics = {"split": split, f"auc": f"{auc:0.3f}", f"f1": f"{f1:0.3f}"}
+        metrics_file = f"{mat_prop}-metrics.csv"
+        with open(metrics_file, mode='a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=metrics.keys())
+            if f.tell() == 0:  # Check if the file is empty to write the header
+                writer.writeheader()
+            writer.writerow(metrics)
+
         return model, f1
     else:
         mae = np.abs(output[0] - output[1]).mean()
@@ -149,7 +166,7 @@ def save_results(data_dir, mat_prop, classification, file_name, verbose=True):
 # %%
 if __name__ == "__main__":
     # Choose the directory where your data is stored
-    data_dir = "data/materials_data"
+    data_dir = "data/materials_data/oxides-holdout/Fe-P-O/"
     # Choose the folder with your materials properties
     # mat_prop = "oxides-with-label-features"
     # Choose if you data is a regression or binary classification
@@ -158,20 +175,31 @@ if __name__ == "__main__":
     train = True
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    # mat_prop = "oxides-with-label-features"
+
+    # mat_prop = "features-"
+    # feats_dim = 0
+    # # Epoch: 49/50 --- train auc: 0.981, f1: 0.927 val auc: 0.818, f1: 0.756
     # if train:
     #     print(f'Property "{mat_prop}" selected for training')
-    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=1)
+    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=feats_dim)
 
-    mat_prop = "oxides-with-qr-label-features"
+
+    # mat_prop = "features-label"
+    # feats_dim = 1
+    # # Discarded: 3/3 weight updates ♻🗑️
+    # # Epoch: 7/50 --- train auc: 1.000, f1: 0.999 val auc: 1.000, f1: 1.000
+    # if train:
+    #     print(f'Property "{mat_prop}" selected for training')
+    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=feats_dim)
+
+    mat_prop = "features-qr_label5"
+    feats_dim = 1
+    # Discarded: 3/3 weight updates ♻🗑️
+    # Epoch: 43/50 --- train auc: 0.968, f1: 0.905 val auc: 0.830, f1: 0.761
     if train:
         print(f'Property "{mat_prop}" selected for training')
-        model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=1)
+        model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=feats_dim)
 
-    # mat_prop = "oxides-with-no-features"
-    # if train:
-    #     print(f'Property "{mat_prop}" selected for training')
-    #     model = get_model(data_dir, mat_prop, classification, verbose=True, feats_dim=0)
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     cutter = "====================================================="
@@ -184,16 +212,17 @@ if __name__ == "__main__":
     print("=====================================================")
     print("calculating train mae")
     model_train, mae_train = save_results(
-        data_dir, mat_prop, classification, "train.csv", verbose=False
+        data_dir, mat_prop, classification, "train.csv", verbose=False, feats_dim=feats_dim
     )
     print("-----------------------------------------------------")
     print("calculating val mae")
     model_val, mae_valn = save_results(
-        data_dir, mat_prop, classification, "val.csv", verbose=False
+        data_dir, mat_prop, classification, "val.csv", verbose=False, feats_dim=feats_dim
     )
     print("-----------------------------------------------------")
     print("calculating test mae")
     model_test, mae_test = save_results(
-        data_dir, mat_prop, classification, "test.csv", verbose=False
+        data_dir, mat_prop, classification, "test.csv", verbose=False, feats_dim=feats_dim
     )
     print("=====================================================")
+
